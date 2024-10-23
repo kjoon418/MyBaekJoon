@@ -1,4 +1,4 @@
-package Unrated;
+package BronzeSilver;
 
 import java.io.*;
 import java.util.*;
