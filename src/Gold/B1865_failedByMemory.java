@@ -176,6 +176,16 @@ public class B1865_failedByMemory {
 
             Wormhole wormhole = wormholes.get(wormholeId);
 
+            // 시작점과 도착점이 같은 웜홀은 취급하지 않음
+            if (wormhole.startCityId == wormhole.endCityId) {
+                if (wormhole.reverseTime > 0) {
+                    return true;
+                }
+                else {
+                    continue;
+                }
+            }
+
             int nextTime = time - wormhole.reverseTime;
             City nextCity = cities.get(wormhole.endCityId);
             ids.add(wormhole.wormholeId);
@@ -192,6 +202,11 @@ public class B1865_failedByMemory {
             }
 
             Road road = roads.get(roadId);
+
+            // 시작점과 도착점이 같은 도로는 취급하지 않음
+            if (road.cityId1 == road.cityId2) {
+                continue;
+            }
 
             int nextTime = time + road.time;
             City nextCity = cities.get(road.findOppositeCityId(startCity.cityId));
