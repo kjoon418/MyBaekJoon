@@ -14,8 +14,6 @@ public class B2206_failedByMemory {
 
     private static int result = Integer.MAX_VALUE;
 
-    private static Set<Point> points = new HashSet<>();
-
     public static void main(String[] args) throws IOException {
         init();
 
@@ -41,82 +39,74 @@ public class B2206_failedByMemory {
     }
 
     private static void controller() throws IOException {
-        move(0, 0, 1, true);
+        Deque<MoveStatus> moveStatuses = new ArrayDeque<>();
+        moveStatuses.offer(new MoveStatus(0, 0, 1, true, new HashSet<>()));
+
+        while(!moveStatuses.isEmpty()) {
+            move(moveStatuses.poll(), moveStatuses);
+        }
     }
 
     /**
      * 움직임을 담당하는 메서드
      * 이미 갔던 곳은 다시 돌아가지 않는다
      */
-    private static void move(int x, int y, int length, boolean canBreak) {
+    private static void move(MoveStatus moveStatus, Deque<MoveStatus> moveStatuses) {
+
+        int x = moveStatus.x;
+        int y = moveStatus.y;
+        boolean canBreak = moveStatus.canBreak;
+        HashSet<Point> visitedPoints = moveStatus.visitedPoints;
+        int length = moveStatus.length;
+
         // 도착했다면 결과를 반영함
         if (x == width-1 && y == height-1) {
             result = Math.min(result, length);
-            points = null;
             return;
         }
-
-        points.add(new Point(x, y));
         length++;
 
-        // 이전 상태로 돌아갈 수 있도록 저장함
-        Set<Point> savePoint = new HashSet<>(points);
+        visitedPoints.add(new Point(x, y));
 
         // 위쪽으로 이동
-        if (canUp(x, y, points)) {
+        if (canMove(moveStatus, Direction.UP)) {
             // 벽이 있을 경우, 벽을 깨고 이동해야 함
-            if (!board[y-1][x]) {
-                if (canBreak) {
-                    move(x, y-1, length, false);
-                    points = savePoint;
-                }
+            if (isWall(x, y-1)) {
+                moveStatuses.offer(new MoveStatus(x, y-1, length, false, visitedPoints));
             } else {
-                move(x, y-1, length, canBreak);
-                points = savePoint;
+                moveStatuses.offer(new MoveStatus(x, y-1, length, canBreak, visitedPoints));
             }
         }
 
         // 아래쪽으로 이동
-        if (canDown(x, y, points)) {
+        if (canMove(moveStatus, Direction.DOWN)) {
             // 벽이 있을 경우, 벽을 깨고 이동해야 함
-            if (!board[y+1][x]) {
-                if (canBreak) {
-                    move(x, y+1, length, false);
-                    points = savePoint;
-                }
+            if (isWall(x, y+1)) {
+                moveStatuses.offer(new MoveStatus(x, y+1, length, false, visitedPoints));
             } else {
-                move(x, y+1, length, canBreak);
-                points = savePoint;
+                moveStatuses.offer(new MoveStatus(x, y+1, length, canBreak, visitedPoints));
             }
         }
 
         // 왼쪽으로 이동
-        if (canLeft(x, y, points)) {
+        if (canMove(moveStatus, Direction.LEFT)) {
             // 벽이 있을 경우, 벽을 깨고 이동해야 함
-            if (!board[y][x-1]) {
-                if (canBreak) {
-                    move(x-1, y, length, false);
-                    points = savePoint;
-                }
+            if (isWall(x-1, y)) {
+                moveStatuses.offer(new MoveStatus(x-1, y, length, false, visitedPoints));
             } else {
-                move(x-1, y, length, canBreak);
-                points = savePoint;
+                moveStatuses.offer(new MoveStatus(x-1, y, length, canBreak, visitedPoints));
             }
         }
 
         // 오른쪽으로 이동
-        if (canRight(x, y, points)) {
+        if (canMove(moveStatus, Direction.RIGHT)) {
             // 벽이 있을 경우, 벽을 깨고 이동해야 함
-            if (!board[y][x+1]) {
-                if (canBreak) {
-                    move(x+1, y, length, false);
-                }
+            if (isWall(x+1, y)) {
+                moveStatuses.offer(new MoveStatus(x+1, y, length, false, visitedPoints));
             } else {
-                move(x+1, y, length, canBreak);
+                moveStatuses.offer(new MoveStatus(x+1, y, length, canBreak, visitedPoints));
             }
         }
-
-        points = null;
     }
 
     private static void printer() throws IOException {
@@ -130,72 +120,118 @@ public class B2206_failedByMemory {
     }
 
     /**
-     * 위로 올라갈 수 있는지 확인하는 메서드
-     * 벽은 반영하지 않음
+     * 이중 배열을 복사하는 메서드
      */
-    private static boolean canUp(int x, int y, Set<Point> points) {
-        if (y <= 0) {
-            return false;
-        }
-        Point point = new Point(x, y-1);
-        if (points.contains(point)) {
-            return false;
+    private static boolean[][] copyBoard(boolean[][] board) {
+        boolean[][] newBoard = new boolean[height][width];
+
+        for (int y = 0; y < height; y++) {
+            System.arraycopy(board[y], 0, newBoard[y], 0, width);
         }
 
-        return true;
+        return newBoard;
     }
 
     /**
-     * 아래로 내려갈 수 있는지 확인하는 메서드
-     * 벽은 반영하지 않음
+     * 움직일 수 있는지 확인하는 메서드
      */
-    private static boolean canDown(int x, int y, Set<Point> points) {
-        if (y+1 >= height) {
-            return false;
-        }
-        Point point = new Point(x, y+1);
-        if (points.contains(point)) {
-            return false;
-        }
+    private static boolean canMove(MoveStatus moveStatus, Direction direction) {
+        int x = moveStatus.x;
+        int y = moveStatus.y;
+        boolean canBreak = moveStatus.canBreak;
+        HashSet<Point> visitedPoints = moveStatus.visitedPoints;
 
-        return true;
+        return switch (direction) {
+            case UP -> {
+                if (y <= 0) {
+                    yield false;
+                }
+                if (visitedPoints.contains(new Point(x, y-1))) {
+                    yield false;
+                }
+                if (!canBreak && isWall(x, y-1)) {
+                    yield false;
+                }
+                yield true;
+            }
+            case DOWN -> {
+                if (y+1 >= height) {
+                    yield false;
+                }
+                if (visitedPoints.contains(new Point(x, y+1))) {
+                    yield false;
+                }
+                if (!canBreak && isWall(x, y+1)) {
+                    yield false;
+                }
+                yield true;
+            }
+            case LEFT -> {
+                if (x <= 0) {
+                    yield false;
+                }
+                if (visitedPoints.contains(new Point(x-1, y))) {
+                    yield false;
+                }
+                if (!canBreak && isWall(x-1, y)) {
+                    yield false;
+                }
+                yield true;
+            }
+            case RIGHT -> {
+                if (x+1 >= width) {
+                    yield false;
+                }
+                if (visitedPoints.contains(new Point(x+1, y))) {
+                    yield false;
+                }
+                if (!canBreak && isWall(x+1, y)) {
+                    yield false;
+                }
+                yield true;
+            }
+        };
     }
 
-    /**
-     * 오른쪽으로 이동할 수 있는지 확인하는 메서드
-     * 벽은 반영하지 않음
-     */
-    private static boolean canRight(int x, int y, Set<Point> points) {
-        if (x+1 >= width) {
-            return false;
-        }
-        Point point = new Point(x+1, y);
-        if (points.contains(point)) {
-            return false;
-        }
-
-        return true;
+    private static boolean isWall(int x, int y) {
+        return !board[y][x];
     }
 
-    /**
-     * 왼쪽으로 이동할 수 있는지 확인하는 메서드
-     * 벽은 반영하지 않음
-     */
-    private static boolean canLeft(int x, int y, Set<Point> points) {
-        if (x <= 0) {
-            return false;
-        }
-        Point point = new Point(x-1, y);
-        if (points.contains(point)) {
-            return false;
+    private static class MoveStatus {
+        private final int x, y;
+        private final int length;
+        private final boolean canBreak;
+        private final HashSet<Point> visitedPoints;
+
+        public MoveStatus(int x, int y, int length, boolean canBreak, HashSet<Point> visitedPoints) {
+            this.x = x;
+            this.y = y;
+            this.length = length;
+            this.canBreak = canBreak;
+            this.visitedPoints = new HashSet<>(visitedPoints);
         }
 
-        return true;
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            MoveStatus moveStatus = (MoveStatus) o;
+            return x == moveStatus.x && y == moveStatus.y;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(x, y);
+        }
     }
 
     private static class Point {
         int x, y;
-        public Point(int x, int y) { this.x = x; this.y = y; }
+
+        public Point(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
 
         @Override
         public boolean equals(Object o) {
@@ -211,5 +247,7 @@ public class B2206_failedByMemory {
         }
     }
 
-
+    private enum Direction {
+        LEFT, RIGHT, UP, DOWN
+    }
 }
