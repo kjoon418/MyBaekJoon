@@ -2,7 +2,10 @@ package programmers.level1;
 
 import java.util.*;
 
-public class 택배_상자_꺼내기 {
+/**
+ * 택배 상자 꺼내기
+ */
+public class GetOutDeliveryBox {
 
     public int solution(int n, int w, int num) {
         Lines lines = new Lines(n, w);

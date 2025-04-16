@@ -2,7 +2,10 @@ package programmers.level1;
 
 import java.util.*;
 
-class 유연근무제 {
+/**
+ * 유연근무제
+ */
+class FlexibleWorkSystem {
     
     private static final int MONDAY = 1;
     private static final int TUESDAY = 2;

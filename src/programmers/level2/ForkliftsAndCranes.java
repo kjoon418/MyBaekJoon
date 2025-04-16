@@ -2,7 +2,10 @@ package programmers.level2;
 
 import java.util.*;
 
-class 지게차와_크레인 {
+/**
+ * 지게차와 크레인
+ */
+class ForkliftsAndCranes {
     
     public int solution(String[] storage, String[] requests) {
         Containers containers = new Containers(storage);
