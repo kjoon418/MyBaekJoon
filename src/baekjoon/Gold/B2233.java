@@ -32,7 +32,7 @@ public class B2233 {
         out.close();
     }
 
-    private static Apple buildAppleTree(String[] bugArray) throws IOException {
+    private static Apple buildAppleTree(String[] bugArray) {
         Apple root = new Apple();
         Apple currentApple = root;
         currentApple.zeroIndex = 0;
