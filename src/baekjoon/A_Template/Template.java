@@ -9,25 +9,10 @@ public class Template {
 
     public static void main(String[] args) throws IOException {
         init();
-
-        controller();
-
-        printer();
     }
 
     private static void init() throws IOException {
 
     }
-
-    private static void controller() throws IOException {
-
-    }
-
-    private static void printer() throws IOException {
-
-
-        out.close();
-    }
-
 
 }
