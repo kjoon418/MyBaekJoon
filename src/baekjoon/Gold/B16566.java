@@ -1,4 +1,4 @@
-package baekjoon.Platinum;
+package baekjoon.Gold;
 
 import java.io.*;
 import java.util.*;
