@@ -4,7 +4,7 @@ package baekjoon.Gold
  * 백준 1041번 문제 - 주사위(골드 5)
  * 수학, 구현, 그리디
  */
-fun main() = with(System.`in`.bufferedReader() to System.out.bufferedWriter()) {
+fun main1041() = with(System.`in`.bufferedReader() to System.out.bufferedWriter()) {
     val (reader, writer) = this
 
     val size = reader.readLine().toLong()
