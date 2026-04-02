@@ -1,201 +1,198 @@
 package baekjoon.gold;
 
-import java.io.*;
-import java.util.HashMap;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.util.HashSet;
-import java.util.StringTokenizer;
+import java.util.Objects;
+import java.util.Set;
 
+/**
+ * 백준 16946번 문제 - 벽 부수고 이동하기 4(골드2)
+ */
 public class B16946 {
     
     private static final BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
     private static final BufferedWriter out = new BufferedWriter(new OutputStreamWriter(System.out));
 
-    private static final int NO_GROUP = -1;
-
-    private static PointInformation[][] board;
-    private static int width, height;
-    private static int id = 0;
-    private static final HashMap<Integer, GroupSize> groupSizes = new HashMap<>();
-
     public static void main(String[] args) throws IOException {
-        init();
+        String[] size = in.readLine().split(" ");
+        int height = Integer.parseInt(size[0]);
+        int width = Integer.parseInt(size[1]);
 
-        controller();
-
-        printer();
-    }
-
-    private static void init() throws IOException {
-        StringTokenizer size = new StringTokenizer(in.readLine(), " ");
-        height = Integer.parseInt(size.nextToken());
-        width = Integer.parseInt(size.nextToken());
-        board = new PointInformation[height][width];
-
+        boolean[][] wallExists = new boolean[height][width];
         for (int y = 0; y < height; y++) {
             String line = in.readLine();
             for (int x = 0; x < width; x++) {
-                char word = line.charAt(x);
-                Status status = word == '1' ? Status.WALL : Status.EMPTY;
-                board[y][x] = new PointInformation(status);
+                wallExists[y][x] = line.charAt(x) == '1';
             }
         }
-    }
-
-    private static void controller() throws IOException {
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                // 빈 공간이면서 아직 그룹에 속해있지 않는 칸에 한해서 그룹화한다
-                PointInformation info = board[y][x];
-                if (info.isEmpty() && !info.hasGroup()) {
-                    joinGroup(x, y, getId());
-                }
-            }
-        }
+        Board board = new Board(wallExists);
 
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                if (board[y][x].isWall()) {
-                    board[y][x].result = getTotalMoveCount(x, y);
-                }
+                int movableAmount = board.getMovableAmount(x, y);
+                out.write((movableAmount % 10) + "");
             }
+            out.write(System.lineSeparator());
         }
-    }
-
-    private static void printer() throws IOException {
-        StringBuilder resultBuilder = new StringBuilder();
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                resultBuilder.append(board[y][x].result);
-            }
-            resultBuilder.append(System.lineSeparator());
-        }
-        out.write(resultBuilder.toString());
 
         out.close();
     }
 
-    private static int getId() {
-        groupSizes.put(id, new GroupSize());
-        return id++;
-    }
+    private static class Board {
 
-    private static void joinGroup(int x, int y, int groupId) {
-        // 같은 그룹으로 만든다
-        board[y][x].groupId = groupId;
-        groupSizes.get(groupId).addSize();
+        private final boolean[][] wallExists;
+        private final int width;
+        private final int height;
+        private final int[][] movableAmounts;
+        private final Cluster[][] clusters;
 
-        // 벽이 없는 상/하/좌/우로 재귀한다
-        if (canGrouping(x, y, Direction.UP, groupId)) {
-            joinGroup(x, y-1, groupId);
-        }
-        if (canGrouping(x, y, Direction.DOWN, groupId)) {
-            joinGroup(x, y+1, groupId);
-        }
-        if (canGrouping(x, y, Direction.LEFT, groupId)) {
-            joinGroup(x-1, y, groupId);
-        }
-        if (canGrouping(x, y, Direction.RIGHT, groupId)) {
-            joinGroup(x+1, y, groupId);
-        }
-    }
+        public Board(boolean[][] wallExists) {
+            this.wallExists = wallExists;
+            width = wallExists[0].length;
+            height = wallExists.length;
+            movableAmounts = new int[height][width];
+            clusters = new Cluster[height][width];
 
-    private static boolean canGrouping(int x, int y, Direction direction, int groupId) {
-        return switch (direction) {
-            case UP -> (y > 0) && board[y-1][x].canGrouping(groupId);
-            case DOWN -> (y < height-1) && board[y+1][x].canGrouping(groupId);
-            case LEFT -> (x > 0) && board[y][x-1].canGrouping(groupId);
-            case RIGHT -> (x < width-1) && board[y][x+1].canGrouping(groupId);
-        };
-    }
-
-    private static boolean canMove(int x, int y, Direction direction) {
-        return switch (direction) {
-            case UP -> (y > 0) && board[y - 1][x].canMove();
-            case DOWN -> (y < height - 1) && board[y + 1][x].canMove();
-            case LEFT -> (x > 0) && board[y][x - 1].canMove();
-            case RIGHT -> (x < width - 1) && board[y][x + 1].canMove();
-        };
-    }
-
-    private static int getTotalMoveCount(int x, int y) {
-        // 해당 자리를 포함하기 위해 1로 시작한다
-        int count = 1;
-        HashSet<Integer> id = new HashSet<>();
-
-        // 상/하/좌/우에 인접한 빈 공간의 그룹을 계산한다
-        if (canMove(x, y, Direction.UP)) {
-            int groupId = board[y-1][x].groupId;
-            id.add(groupId);
-            count += groupSizes.get(groupId).size;
+            calculateClusters();
+            calculateMovableAmounts();
         }
-        if (canMove(x, y, Direction.DOWN)) {
-            int groupId = board[y+1][x].groupId;
-            if (!id.contains(groupId)) {
-                id.add(groupId);
-                count += groupSizes.get(groupId).size;
-            }
+
+        public int getMovableAmount(int x, int y) {
+            return movableAmounts[y][x];
         }
-        if (canMove(x, y, Direction.LEFT)) {
-            int groupId = board[y][x-1].groupId;
-            if (!id.contains(groupId)) {
-                id.add(groupId);
-                count += groupSizes.get(groupId).size;
-            }
-        }
-        if (canMove(x, y, Direction.RIGHT)) {
-            int groupId = board[y][x+1].groupId;
-            if (!id.contains(groupId)) {
-                id.add(groupId);
-                count += groupSizes.get(groupId).size;
+
+        private void calculateClusters() {
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    if (!isOriginallyEmpty(x, y)) {
+                        continue;
+                    }
+                    if (clusters[y][x] != null) {
+                        continue;
+                    }
+                    Set<Point> clusteredPoints = new HashSet<>();
+                    calculateCluster(x, y, clusteredPoints);
+                    saveCluster(clusteredPoints);
+                }
             }
         }
 
-        return count % 10;
+        private void calculateMovableAmounts() {
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    if (isOriginallyEmpty(x, y)) {
+                        continue;
+                    }
+                    Set<Cluster> adjacentClusters = getAdjacentClusters(x, y);
+
+                    int clustersSum = adjacentClusters.stream()
+                            .mapToInt(Cluster::size)
+                            .sum();
+                    movableAmounts[y][x] = clustersSum + 1;
+                }
+            }
+        }
+
+        private boolean isOriginallyEmpty(int x, int y) {
+            return !wallExists[y][x];
+        }
+
+        private void calculateCluster(int x, int y, Set<Point> clusteredPoints) {
+            Point now = new Point(x, y);
+            if (isOutOfBoard(x, y)
+                    || clusteredPoints.contains(now)
+                    || !isOriginallyEmpty(x, y)) {
+                return;
+            }
+
+            clusteredPoints.add(now);
+            calculateCluster(x, y - 1, clusteredPoints);
+            calculateCluster(x, y + 1, clusteredPoints);
+            calculateCluster(x - 1, y, clusteredPoints);
+            calculateCluster(x + 1, y, clusteredPoints);
+        }
+
+        private void saveCluster(Set<Point> clusteredPoints) {
+            Cluster cluster = new Cluster(clusteredPoints);
+
+            for (Point point : cluster.getPoints()) {
+                clusters[point.y][point.x] = cluster;
+            }
+        }
+
+        private Set<Cluster> getAdjacentClusters(int x, int y) {
+            HashSet<Cluster> adjacentClusters = new HashSet<>();
+
+            if (isInBoard(x, y - 1) && clusters[y - 1][x] != null) {
+                adjacentClusters.add(clusters[y - 1][x]);
+            }
+            if (isInBoard(x, y + 1) && clusters[y + 1][x] != null) {
+                adjacentClusters.add(clusters[y + 1][x]);
+            }
+            if (isInBoard(x - 1, y) && clusters[y][x - 1] != null) {
+                adjacentClusters.add(clusters[y][x - 1]);
+            }
+            if (isInBoard(x + 1, y) && clusters[y][x + 1] != null) {
+                adjacentClusters.add(clusters[y][x + 1]);
+            }
+
+            return adjacentClusters;
+        }
+
+        public boolean isOutOfBoard(int x, int y) {
+            return x < 0
+                    || y < 0
+                    || x >= width
+                    || y >= height;
+        }
+
+        public boolean isInBoard(int x, int y) {
+            return !isOutOfBoard(x, y);
+        }
     }
 
-    private static class PointInformation {
-        Status status; // true=wall, false=empty
-        int groupId = NO_GROUP;
-        int result = 0;
+    private static class Cluster {
 
-        public PointInformation(Status status) {
-            this.status = status;
+        private final Set<Point> points;
+
+        public Cluster(Set<Point> points) {
+            this.points = points;
         }
 
-        public boolean isWall() {
-            return this.status == Status.WALL;
+        public int size() {
+            return points.size();
         }
 
-        public boolean isEmpty() {
-            return this.status == Status.EMPTY;
-        }
-
-        public boolean hasGroup() {
-            return groupId != NO_GROUP;
-        }
-
-        public boolean canGrouping(int groupId) {
-            return (this.status == Status.EMPTY) && (this.groupId != groupId);
-        }
-
-        public boolean canMove() {
-            return this.status == Status.EMPTY;
+        public Set<Point> getPoints() {
+            return points;
         }
     }
 
-    private static class GroupSize {
-        int size = 0;
+    private static class Point {
 
-        public void addSize() {
-            this.size++;
+        final int x, y;
+
+        public Point(int x, int y) {
+            this.x = x;
+            this.y = y;
         }
-    }
 
-    private enum Direction {
-        UP, DOWN, LEFT, RIGHT
-    }
+        @Override
+        public boolean equals(Object o) {
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            Point point = (Point) o;
+            return x == point.x && y == point.y;
+        }
 
-    private enum Status {
-        WALL, EMPTY
+        @Override
+        public int hashCode() {
+            return Objects.hash(x, y);
+        }
     }
 }
